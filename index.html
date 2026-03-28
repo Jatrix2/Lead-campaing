@@ -297,6 +297,51 @@ textarea { resize: vertical; min-height: 160px; font-size: 13px; line-height: 1.
   background: var(--accent); color: #fff; border-radius: 10px;
   font-size: 11px; font-weight: 600; font-family: var(--mono);
 }
+
+/* SAVED SESSIONS */
+.sessions-section { margin-top: 24px; }
+.sessions-title {
+  font-size: 11px; color: var(--text3); text-transform: uppercase;
+  letter-spacing: 0.07em; margin-bottom: 10px; font-weight: 500;
+}
+.session-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px;
+  transition: border-color 0.15s;
+}
+.session-card:hover { border-color: var(--border2); }
+.session-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: var(--accent-glow); display: flex; align-items: center;
+  justify-content: center; font-size: 18px; flex-shrink: 0;
+}
+.session-info { flex: 1; min-width: 0; }
+.session-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.session-meta { font-size: 11px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
+.session-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
+.session-del {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text3); cursor: pointer; display: flex;
+  align-items: center; justify-content: center; font-size: 14px;
+  transition: all 0.15s;
+}
+.session-del:hover { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+.session-load {
+  padding: 5px 12px; border-radius: var(--radius-sm); font-size: 12px;
+  font-weight: 500; background: var(--accent); color: #fff;
+  border: none; cursor: pointer; white-space: nowrap;
+}
+.autosave-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+  display: inline-block; margin-right: 4px; animation: blink 2.5s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.save-status {
+  font-size: 11px; color: var(--text3); display: flex; align-items: center;
+  padding: 6px 0 0;
+}
 </style>
 </head>
 <body>
@@ -330,12 +375,28 @@ textarea { resize: vertical; min-height: 160px; font-size: 13px; line-height: 1.
       owner@brand.co.uk,brand.co.uk
     </div>
   </div>
+
+  <div class="sessions-section" id="sessions-section" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <p class="sessions-title" style="margin-bottom:0">Saved sessions</p>
+      <button class="session-del" style="width:auto;padding:4px 10px;font-size:11px;border-radius:20px;height:auto" onclick="clearAllSessions()">Clear all</button>
+    </div>
+    <div id="sessions-list"></div>
+  </div>
 </div>
 
 <!-- SCREEN 1: CONFIGURE -->
 <div class="screen" id="screen-1">
-  <p class="screen-title">Configure campaign</p>
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px">
+    <p class="screen-title" style="margin-bottom:0">Configure campaign</p>
+    <div class="save-status" id="save-status" style="display:none"><span class="autosave-dot"></span>Saved</div>
+  </div>
   <p class="screen-sub">Your leads have been cleaned and segmented. Edit the email templates below for each region, then generate your campaign.</p>
+
+  <div class="field-group" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:0">
+    <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;display:block">Session name (for saving)</label>
+    <input type="text" id="session-name" placeholder="e.g. Shopify EU batch — March 2025" style="margin:0">
+  </div>
 
   <div class="stats-row" id="stats-row"></div>
   <div id="warnings-area"></div>
@@ -404,7 +465,8 @@ textarea { resize: vertical; min-height: 160px; font-size: 13px; line-height: 1.
 <!-- BOTTOM BARS -->
 <div class="bottom-bar" id="bar-1" style="display:none">
   <button class="btn btn-outline btn-sm" onclick="goScreen(0)" style="width:auto;flex-shrink:0">← Back</button>
-  <button class="btn btn-primary" onclick="generateCampaign()">Generate campaign →</button>
+  <button class="btn btn-outline btn-sm" onclick="saveSession()" style="width:auto;flex-shrink:0">💾 Save</button>
+  <button class="btn btn-primary" onclick="generateCampaign()">Generate →</button>
 </div>
 <div class="bottom-bar" id="bar-2" style="display:none">
   <button class="btn btn-outline btn-sm" onclick="goScreen(1)" style="width:auto;flex-shrink:0">← Edit</button>
@@ -432,7 +494,232 @@ const SEG_COLORS = {
   'Other': '#60607a'
 };
 
-const REGIONS = ['US','EU','GB','AUS'];
+// ── INDEXEDDB CACHE ───────────────────────────────────────────────────────────
+const DB_NAME = 'leadmail_db';
+const DB_VER = 1;
+const STORE = 'sessions';
+let db = null;
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE)) {
+        d.createObjectStore(STORE, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; res(db); };
+    req.onerror = () => rej(req.error);
+  });
+}
+
+function dbPut(session) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(session);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+function dbGetAll() {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+
+function dbDelete(id) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+function dbClear() {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).clear();
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+// ── SAVE SESSION ──────────────────────────────────────────────────────────────
+async function saveSession() {
+  saveCurrentTemplate();
+  const nameEl = document.getElementById('session-name');
+  const name = (nameEl && nameEl.value.trim()) || ('Campaign ' + new Date().toLocaleDateString());
+  const sender = {
+    name: document.getElementById('sender-name').value.trim(),
+    company: document.getElementById('sender-company').value.trim(),
+    email: document.getElementById('sender-email').value.trim(),
+    offer: document.getElementById('sender-offer').value.trim()
+  };
+  const session = {
+    id: Date.now(),
+    name,
+    savedAt: new Date().toISOString(),
+    leads: allLeads,
+    templates,
+    sender,
+    sentIds: [...sentSet]
+  };
+  try {
+    await dbPut(session);
+    const status = document.getElementById('save-status');
+    if (status) status.style.display = 'flex';
+    toast('Session saved: ' + name);
+    loadSessionsList();
+  } catch (e) {
+    toast('Save failed — storage may be unavailable');
+  }
+}
+
+// ── AUTOSAVE (debounced) ──────────────────────────────────────────────────────
+let autosaveTimer = null;
+let currentSessionId = null;
+
+function scheduleAutosave() {
+  if (!currentSessionId || allLeads.length === 0) return;
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(async () => {
+    saveCurrentTemplate();
+    const sender = {
+      name: (document.getElementById('sender-name')||{}).value||'',
+      company: (document.getElementById('sender-company')||{}).value||'',
+      email: (document.getElementById('sender-email')||{}).value||'',
+      offer: (document.getElementById('sender-offer')||{}).value||''
+    };
+    const nameEl = document.getElementById('session-name');
+    const name = (nameEl && nameEl.value.trim()) || ('Campaign ' + new Date().toLocaleDateString());
+    try {
+      await dbPut({
+        id: currentSessionId,
+        name,
+        savedAt: new Date().toISOString(),
+        leads: allLeads,
+        templates,
+        sender,
+        sentIds: [...sentSet]
+      });
+      const status = document.getElementById('save-status');
+      if (status) { status.style.display = 'flex'; }
+    } catch(e) {}
+  }, 2000);
+}
+
+// ── LOAD SESSION ──────────────────────────────────────────────────────────────
+async function loadSession(id) {
+  try {
+    const all = await dbGetAll();
+    const session = all.find(s => s.id === id);
+    if (!session) { toast('Session not found'); return; }
+
+    allLeads = session.leads || [];
+    templates = session.templates || {};
+    sentSet = new Set(session.sentIds || []);
+    currentSessionId = session.id;
+
+    // Count stats for display
+    const dupes = 0, invalid = 0;
+    const result = { leads: allLeads, dupes, invalid, total: allLeads.length };
+    buildScreen1(result);
+
+    // Restore sender info
+    if (session.sender) {
+      setTimeout(() => {
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+        set('sender-name', session.sender.name);
+        set('sender-company', session.sender.company);
+        set('sender-email', session.sender.email);
+        set('sender-offer', session.sender.offer);
+        set('session-name', session.name);
+      }, 50);
+    }
+
+    goScreen(1);
+    toast('Loaded: ' + session.name);
+
+    // Show save indicator
+    setTimeout(() => {
+      const status = document.getElementById('save-status');
+      if (status) status.style.display = 'flex';
+    }, 100);
+  } catch(e) {
+    toast('Failed to load session');
+  }
+}
+
+// ── DELETE SESSION ────────────────────────────────────────────────────────────
+async function deleteSession(id, e) {
+  e.stopPropagation();
+  try {
+    await dbDelete(id);
+    loadSessionsList();
+    toast('Session deleted');
+  } catch(err) {
+    toast('Delete failed');
+  }
+}
+
+async function clearAllSessions() {
+  try {
+    await dbClear();
+    loadSessionsList();
+    toast('All sessions cleared');
+  } catch(e) {
+    toast('Clear failed');
+  }
+}
+
+// ── SESSIONS LIST ─────────────────────────────────────────────────────────────
+async function loadSessionsList() {
+  if (!db) return;
+  try {
+    const sessions = await dbGetAll();
+    const section = document.getElementById('sessions-section');
+    const list = document.getElementById('sessions-list');
+    if (!section || !list) return;
+
+    if (sessions.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = 'block';
+    sessions.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+
+    list.innerHTML = sessions.map(s => {
+      const d = new Date(s.savedAt);
+      const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      const timeStr = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      const leadCount = (s.leads || []).length;
+      const sentCount = (s.sentIds || []).length;
+      const regions = [...new Set((s.leads||[]).map(l => l.region))].join(' · ');
+      return `
+      <div class="session-card">
+        <div class="session-icon">📋</div>
+        <div class="session-info">
+          <div class="session-name">${escAttr(s.name)}</div>
+          <div class="session-meta">${leadCount} leads · ${sentCount} sent · ${regions}</div>
+          <div class="session-meta" style="color:var(--text3)">${dateStr} at ${timeStr}</div>
+        </div>
+        <div class="session-actions">
+          <button class="session-del" onclick="deleteSession(${s.id}, event)" title="Delete">✕</button>
+          <button class="session-load" onclick="loadSession(${s.id})">Load</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    console.warn('Could not load sessions:', e);
+  }
+}
 
 // ── REGION DETECTION ─────────────────────────────────────────────────────────
 function detectRegion(email, domain) {
@@ -473,18 +760,11 @@ function detectSegment(email, domain) {
 function cleanEmail(raw) {
   if (!raw) return null;
   let e = raw.trim();
-  // Remove trailing garbage letters ONLY after .com (e.g. .comP .comA .comB)
   e = e.replace(/\.com[A-Z]+$/i, '.com');
-  // Fix gmail.fr -> gmail.com, yahoo.fr etc
   e = e.replace(/@gmail\.(fr|de|es|it|nl|pt)/i, '@gmail.com');
   e = e.replace(/@yahoo\.(fr|de|it|es)/i, '@yahoo.com');
   e = e.replace(/@hotmail\.(fr|de|es|it)/i, '@hotmail.com');
-  // Remove .co -> .com for non-country-code contexts (keep .co.uk)
-  // Actually for email domains: brand.co -> brand.com (as instructed)
-  // But keep .co.uk
-  // Validate basic email shape
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return null;
-  // Filter known placeholders
   if (/^(youremail|email@email|mailsupport@gmail|test@|example@)/i.test(e)) return null;
   if (/ilovefb\.info/.test(e)) return null;
   return e.toLowerCase();
@@ -493,9 +773,7 @@ function cleanEmail(raw) {
 function cleanDomain(raw) {
   if (!raw) return '';
   let d = raw.trim().toLowerCase();
-  // Remove protocol
   d = d.replace(/^https?:\/\//, '').replace(/^www\./, '');
-  // .co -> .com (but not .co.uk, .com.co etc)
   d = d.replace(/\.co$/, '.com');
   return d;
 }
@@ -503,7 +781,7 @@ function cleanDomain(raw) {
 // ── CSV PARSER ───────────────────────────────────────────────────────────────
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
+  if (lines.length < 2) return null;
 
   const header = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g,''));
   const emailIdx = header.findIndex(h => h.includes('email'));
@@ -520,14 +798,12 @@ function parseCSV(text) {
 
     const email = cleanEmail(rawEmail);
     if (!email) { invalid++; continue; }
-
     if (seen.has(email)) { dupes++; continue; }
     seen.add(email);
 
     const domain = cleanDomain(rawDomain || email.split('@')[1]);
     const region = detectRegion(email, domain);
     const segment = detectSegment(email, domain);
-
     leads.push({ email, domain, region, segment, id: i });
   }
 
@@ -536,8 +812,7 @@ function parseCSV(text) {
 
 function parseCSVRow(line) {
   const result = [];
-  let cur = '';
-  let inQ = false;
+  let cur = '', inQ = false;
   for (let i = 0; i < line.length; i++) {
     if (line[i] === '"') { inQ = !inQ; continue; }
     if (line[i] === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
@@ -549,11 +824,10 @@ function parseCSVRow(line) {
 
 // ── DEFAULT TEMPLATES ────────────────────────────────────────────────────────
 function defaultTemplate(region) {
-  const greetings = { US: 'Hi', EU: 'Hello', GB: 'Hi', AUS: 'G\'day' };
+  const greetings = { US: 'Hi', EU: 'Hello', GB: 'Hi', AUS: "G'day" };
   const closings = { US: 'Best,', EU: 'Kind regards,', GB: 'Cheers,', AUS: 'Cheers,' };
-  const g = greetings[region];
-  const c = closings[region];
-
+  const g = greetings[region] || 'Hi';
+  const c = closings[region] || 'Best,';
   return {
     subject: `Quick idea for {{domain}}`,
     body: `${g} there,
@@ -576,7 +850,6 @@ function goScreen(n) {
   document.getElementById('screen-' + n).classList.add('active');
   document.getElementById('bar-1').style.display = n === 1 ? 'flex' : 'none';
   document.getElementById('bar-2').style.display = n === 2 ? 'flex' : 'none';
-  // Update pills
   for (let i = 0; i < 3; i++) {
     const p = document.getElementById('pill-' + i);
     p.className = 'step-pill';
@@ -608,7 +881,16 @@ function processFile(file) {
       return;
     }
     allLeads = result.leads;
+    sentSet = new Set();
+    currentSessionId = Date.now(); // new session id for this upload
     buildScreen1(result);
+    // Pre-fill session name with filename
+    setTimeout(() => {
+      const nameEl = document.getElementById('session-name');
+      if (nameEl && !nameEl.value) {
+        nameEl.value = file.name.replace(/\.csv$/i, '') + ' — ' + new Date().toLocaleDateString();
+      }
+    }, 50);
     goScreen(1);
   };
   reader.readAsText(file);
@@ -616,7 +898,6 @@ function processFile(file) {
 
 // ── SCREEN 1 BUILD ───────────────────────────────────────────────────────────
 function buildScreen1(result) {
-  // Stats
   const regionCounts = {};
   const segCounts = {};
   allLeads.forEach(l => {
@@ -631,23 +912,20 @@ function buildScreen1(result) {
     <div class="stat-card"><div class="val">${Object.keys(regionCounts).length}</div><div class="lbl">Regions</div></div>
   `;
 
-  // Warnings
   let w = '';
   if (result.dupes > 0) w += `<div class="warning-box"><strong>Duplicates removed:</strong> ${result.dupes} duplicate email addresses were deduplicated.</div>`;
   if (result.invalid > 0) w += `<div class="warning-box"><strong>Invalid entries skipped:</strong> ${result.invalid} addresses were malformed or placeholder emails.</div>`;
   w += `<div class="info-box">Variables available in templates: <span class="var-chip">{{domain}}</span> <span class="var-chip">{{email}}</span> <span class="var-chip">{{segment}}</span> <span class="var-chip">{{NAME}}</span> <span class="var-chip">{{COMPANY}}</span> <span class="var-chip">{{EMAIL}}</span> <span class="var-chip">{{OFFER}}</span></div>`;
   document.getElementById('warnings-area').innerHTML = w;
 
-  // Segments
   const segHTML = Object.entries(segCounts).sort((a,b) => b[1]-a[1]).map(([seg, cnt]) =>
     `<div class="seg-tag"><div class="seg-dot" style="background:${SEG_COLORS[seg]||'#888'}"></div><span>${seg}</span><span class="seg-count">${cnt}</span></div>`
   ).join('');
   document.getElementById('segment-grid').innerHTML = segHTML;
 
-  // Template tabs
   const activeRegions = [...new Set(allLeads.map(l => l.region))].sort();
-  templates = {};
-  activeRegions.forEach(r => { templates[r] = defaultTemplate(r); });
+  // Only set default templates for regions not already loaded from cache
+  activeRegions.forEach(r => { if (!templates[r]) templates[r] = defaultTemplate(r); });
 
   const tabsHTML = activeRegions.map((r, i) =>
     `<button class="tmpl-tab ${i===0?'active':''}" onclick="switchTemplate('${r}',this)">${flagEmoji(r)} ${r}</button>`
@@ -655,6 +933,12 @@ function buildScreen1(result) {
   document.getElementById('template-tabs').innerHTML = tabsHTML;
 
   renderTemplateEditor(activeRegions[0]);
+
+  // Wire autosave to sender fields
+  ['sender-name','sender-company','sender-email','sender-offer','session-name'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', scheduleAutosave);
+  });
 }
 
 function flagEmoji(r) {
@@ -685,14 +969,19 @@ function renderTemplateEditor(region) {
   document.getElementById('template-editor').innerHTML = `
     <div class="field-group">
       <label>Subject line</label>
-      <input type="text" id="tmpl-subject" value="${escAttr(t.subject)}" placeholder="Subject…">
+      <input type="text" id="tmpl-subject" value="${escAttr(t.subject)}" placeholder="Subject…" oninput="onTemplateInput()">
     </div>
     <div class="field-group">
       <label>Email body</label>
-      <textarea id="tmpl-body">${escAttr(t.body)}</textarea>
+      <textarea id="tmpl-body" oninput="onTemplateInput()">${escAttr(t.body)}</textarea>
       <div class="vars-hint">Use <span class="var-chip">{{domain}}</span> <span class="var-chip">{{email}}</span> <span class="var-chip">{{segment}}</span> <span class="var-chip">{{NAME}}</span> <span class="var-chip">{{COMPANY}}</span> <span class="var-chip">{{EMAIL}}</span> <span class="var-chip">{{OFFER}}</span></div>
     </div>
   `;
+}
+
+function onTemplateInput() {
+  saveCurrentTemplate();
+  scheduleAutosave();
 }
 
 function escAttr(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -700,13 +989,14 @@ function escAttr(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;'
 // ── GENERATE CAMPAIGN ─────────────────────────────────────────────────────────
 function generateCampaign() {
   saveCurrentTemplate();
+  // Final autosave before generating
+  saveSession();
 
   const name = document.getElementById('sender-name').value.trim() || 'Your Name';
   const company = document.getElementById('sender-company').value.trim() || 'Your Company';
   const senderEmail = document.getElementById('sender-email').value.trim() || 'your@email.com';
   const offer = document.getElementById('sender-offer').value.trim() || 'Shopify growth services';
 
-  // Attach rendered email to each lead
   allLeads.forEach(lead => {
     const tmpl = templates[lead.region] || templates['US'] || defaultTemplate('US');
     const vars = {
@@ -718,20 +1008,17 @@ function generateCampaign() {
       '{{EMAIL}}': senderEmail,
       '{{OFFER}}': offer
     };
-
     let subject = tmpl.subject;
     let body = tmpl.body;
     Object.entries(vars).forEach(([k, v]) => {
       subject = subject.split(k).join(v);
       body = body.split(k).join(v);
     });
-
     lead.subject = subject;
     lead.body = body;
     lead.mailto = `mailto:${lead.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   });
 
-  sentSet = new Set();
   document.getElementById('campaign-summary').textContent =
     `${allLeads.length} leads · ${[...new Set(allLeads.map(l=>l.region))].join(', ')}`;
 
@@ -811,6 +1098,7 @@ function markSent(id) {
     if (cb) cb.checked = true;
   }
   updateProgress();
+  scheduleAutosave();
 }
 
 function toggleSent(id, cb) {
@@ -819,6 +1107,7 @@ function toggleSent(id, cb) {
   const card = document.getElementById('card-' + id);
   if (card) card.style.opacity = cb.checked ? '0.5' : '1';
   updateProgress();
+  scheduleAutosave();
 }
 
 function updateProgress() {
@@ -852,6 +1141,14 @@ function toast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
 }
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+openDB().then(() => {
+  loadSessionsList();
+}).catch(e => {
+  console.warn('IndexedDB unavailable:', e);
+});
 </script>
+
 </body>
 </html>
