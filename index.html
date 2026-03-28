@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campaign Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0c0c0c;
+  --surface: #141414;
+  --surface2: #1c1c1c;
+  --surface3: #242424;
+  --border: #2a2a2a;
+  --border2: #333;
+  --text: #f0ede8;
+  --text2: #999;
+  --text3: #555;
+  --accent: #e8d5a3;
+  --accent2: #c9b47a;
+  --green: #4ade80;
+  --red: #f87171;
+  --blue: #60a5fa;
+  --purple: #a78bfa;
+  --radius: 8px;
+  --radius-lg: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── LAYOUT ── */
+header {
+  padding: 18px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  background: rgba(12,12,12,0.95);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+}
+header .logo {
+  font-family: 'Instrument Serif', serif;
+  font-size: 20px;
+  color: var(--accent);
+  letter-spacing: -0.3px;
+}
+header .logo span { font-style: italic; color: var(--text2); font-size: 14px; margin-left: 6px; font-family: 'DM Sans', sans-serif; }
+.steps-nav {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.step-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: 'DM Mono', monospace;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text3);
+  cursor: default;
+  transition: all 0.2s;
+}
+.step-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(232,213,163,0.07); }
+.step-btn.done { border-color: var(--border2); color: var(--text2); }
+.step-btn .num {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--surface3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+}
+.step-btn.active .num { background: var(--accent); color: var(--bg); }
+.step-btn.done .num { background: var(--green); color: var(--bg); }
+
+main { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+
+/* ── STEP PANELS ── */
+.panel { display: none; animation: fadeIn 0.3s ease; }
+.panel.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.panel-header { margin-bottom: 32px; }
+.panel-header h2 {
+  font-family: 'Instrument Serif', serif;
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--text);
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+}
+.panel-header p { color: var(--text2); font-size: 13px; line-height: 1.6; max-width: 560px; }
+
+/* ── UPLOAD ZONE ── */
+.upload-zone {
+  border: 1px dashed var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 60px 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  background: var(--surface);
+}
+.upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(232,213,163,0.04); }
+.upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.upload-icon { font-size: 36px; margin-bottom: 12px; }
+.upload-zone h3 { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+.upload-zone p { color: var(--text2); font-size: 12px; }
+.upload-zone .mono { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); margin-top: 10px; }
+
+/* ── STATS ROW ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.stat-card .label { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+.stat-card .val { font-size: 26px; font-weight: 300; color: var(--text); }
+.stat-card .sub { font-size: 11px; color: var(--text2); margin-top: 3px; }
+.stat-card.highlight { border-color: var(--accent); background: rgba(232,213,163,0.04); }
+.stat-card.highlight .val { color: var(--accent); }
+
+/* ── SEGMENT TABLE ── */
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+table { width: 100%; border-collapse: collapse; }
+thead tr { background: var(--surface2); border-bottom: 1px solid var(--border); }
+th {
+  padding: 10px 16px;
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  text-align: left;
+  font-weight: 400;
+}
+td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text2); }
+td:first-child { color: var(--text); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface2); }
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+}
+.badge-us { background: rgba(96,165,250,0.12); color: #93c5fd; border: 1px solid rgba(96,165,250,0.2); }
+.badge-eu { background: rgba(167,139,250,0.12); color: #c4b5fd; border: 1px solid rgba(167,139,250,0.2); }
+.badge-gb { background: rgba(74,222,128,0.12); color: #86efac; border: 1px solid rgba(74,222,128,0.2); }
+.badge-au { background: rgba(251,191,36,0.12); color: #fcd34d; border: 1px solid rgba(251,191,36,0.2); }
+.badge-other { background: rgba(120,120,120,0.12); color: #888; border: 1px solid rgba(120,120,120,0.2); }
+
+.badge-beauty { background: rgba(236,72,153,0.1); color: #f9a8d4; border: 1px solid rgba(236,72,153,0.2); }
+.badge-fashion { background: rgba(167,139,250,0.1); color: #c4b5fd; border: 1px solid rgba(167,139,250,0.2); }
+.badge-health { background: rgba(74,222,128,0.1); color: #86efac; border: 1px solid rgba(74,222,128,0.2); }
+.badge-home { background: rgba(251,191,36,0.1); color: #fcd34d; border: 1px solid rgba(251,191,36,0.2); }
+.badge-pets { background: rgba(249,115,22,0.1); color: #fdba74; border: 1px solid rgba(249,115,22,0.2); }
+.badge-jewelry { background: rgba(232,213,163,0.12); color: #e8d5a3; border: 1px solid rgba(232,213,163,0.2); }
+.badge-sports { background: rgba(96,165,250,0.1); color: #93c5fd; border: 1px solid rgba(96,165,250,0.2); }
+.badge-kids { background: rgba(244,114,182,0.1); color: #f9a8d4; border: 1px solid rgba(244,114,182,0.2); }
+.badge-other2 { background: rgba(120,120,120,0.1); color: #888; border: 1px solid rgba(120,120,120,0.2); }
+
+.warn-badge { background: rgba(251,191,36,0.1); color: #fcd34d; border: 1px solid rgba(251,191,36,0.2); font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: 'DM Mono', monospace; }
+.err-badge { background: rgba(248,113,113,0.1); color: #fca5a5; border: 1px solid rgba(248,113,113,0.2); font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: 'DM Mono', monospace; }
+
+/* ── BUTTONS ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+.btn-primary:hover { background: var(--accent2); }
+.btn-secondary {
+  background: transparent;
+  color: var(--text2);
+  border-color: var(--border2);
+}
+.btn-secondary:hover { border-color: var(--text2); color: var(--text); }
+.btn-ghost { background: transparent; color: var(--text3); border: none; padding: 6px 10px; font-size: 12px; }
+.btn-ghost:hover { color: var(--text2); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-icon { padding: 8px; border-radius: var(--radius); }
+
+.action-row { display: flex; gap: 10px; align-items: center; margin-top: 24px; }
+
+/* ── TEMPLATES EDITOR ── */
+.template-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.ttab {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-family: 'DM Mono', monospace;
+  cursor: pointer;
+  color: var(--text3);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.ttab:hover { color: var(--text2); }
+.ttab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.template-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 700px) { .template-grid { grid-template-columns: 1fr; } }
+
+.tpl-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.tpl-card-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+}
+.tpl-card-header .tpl-name { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text2); flex: 1; }
+.tpl-body { padding: 12px; }
+.field-group { margin-bottom: 12px; }
+.field-label { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
+.field-input {
+  width: 100%;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  resize: none;
+  transition: border-color 0.15s;
+  line-height: 1.5;
+}
+.field-input:focus { outline: none; border-color: var(--accent); }
+.field-input.mono { font-family: 'DM Mono', monospace; font-size: 12px; }
+textarea.field-input { min-height: 120px; }
+
+.vars-hint {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 4px;
+  font-family: 'DM Mono', monospace;
+}
+.vars-hint span { color: var(--accent2); }
+
+/* ── CAMPAIGN OUTPUT ── */
+.campaign-controls {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 24px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 6px; min-width: 150px; }
+.ctrl-label { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; }
+.ctrl-select {
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ctrl-select:focus { outline: none; border-color: var(--accent); }
+
+.lead-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.lead-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 80px 90px 100px 130px auto;
+  gap: 0;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  transition: background 0.1s;
+}
+.lead-row:hover { background: var(--surface2); }
+.lead-row.header {
+  background: var(--surface2);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  font-weight: 400;
+}
+.lead-row:last-child { border-bottom: none; }
+.lead-idx { color: var(--text3); font-family: 'DM Mono', monospace; font-size: 11px; }
+.lead-email { color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 8px; }
+.lead-status { font-size: 11px; }
+.open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  background: rgba(232,213,163,0.1);
+  color: var(--accent);
+  border: 1px solid rgba(232,213,163,0.2);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.open-btn:hover { background: rgba(232,213,163,0.2); }
+.open-btn.gmail { background: rgba(234,67,53,0.1); color: #f87171; border-color: rgba(234,67,53,0.2); }
+.open-btn.gmail:hover { background: rgba(234,67,53,0.2); }
+
+.progress-bar-wrap { background: var(--surface3); border-radius: 4px; height: 4px; overflow: hidden; margin-top: 8px; }
+.progress-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s; }
+
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 12px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.section-divider::before, .section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 40px;
+  color: var(--text3);
+}
+.empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state p { font-size: 13px; line-height: 1.6; }
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text);
+  z-index: 999;
+  transform: translateY(100px);
+  opacity: 0;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: rgba(74,222,128,0.3); }
+.toast.error { border-color: rgba(248,113,113,0.3); }
+
+.search-input {
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  width: 220px;
+}
+.search-input:focus { outline: none; border-color: var(--accent); }
+
+.export-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.count-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  background: var(--surface3);
+  color: var(--text3);
+  border: 1px solid var(--border);
+}
+.count-chip strong { color: var(--text); }
+
+.preview-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.preview-modal.open { display: flex; }
+.preview-inner {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 640px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.preview-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+.preview-header h3 { font-size: 15px; font-weight: 500; flex: 1; }
+.preview-body { padding: 20px; }
+.preview-field { margin-bottom: 16px; }
+.preview-field .pf-label { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
+.preview-field .pf-val { font-size: 13px; color: var(--text); line-height: 1.7; background: var(--surface2); padding: 10px 12px; border-radius: var(--radius); white-space: pre-wrap; font-family: 'DM Mono', monospace; }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Outpost <span>campaign builder</span></div>
+  <div class="steps-nav">
+    <div class="step-btn active" id="nav-1"><span class="num">1</span> Import</div>
+    <div class="step-btn" id="nav-2"><span class="num">2</span> Review</div>
+    <div class="step-btn" id="nav-3"><span class="num">3</span> Templates</div>
+    <div class="step-btn" id="nav-4"><span class="num">4</span> Campaign</div>
+  </div>
+</header>
+
+<main>
+
+<!-- ══════════════════ STEP 1: IMPORT ══════════════════ -->
+<div id="panel-1" class="panel active">
+  <div class="panel-header">
+    <h2>Import your leads</h2>
+    <p>Upload a CSV file containing your Shopify store leads. The file should have at least an <code style="color:var(--accent2);font-size:12px">email</code> column, and optionally a <code style="color:var(--accent2);font-size:12px">domain</code> column.</p>
+  </div>
+
+  <div class="upload-zone" id="dropzone">
+    <input type="file" accept=".csv,.txt" id="file-input" onchange="handleFile(this.files[0])">
+    <div class="upload-icon">📂</div>
+    <h3>Drop your CSV here</h3>
+    <p>or click to browse files</p>
+    <div class="mono">Accepts: .csv — columns: email, domain (optional)</div>
+  </div>
+
+  <div style="margin-top:24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;">
+    <div style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px">Or paste raw data</div>
+    <textarea id="paste-input" class="field-input" style="min-height:100px;width:100%" placeholder="Paste emails or CSV rows here...&#10;dibsdepot@gmail.com&#10;info@mystore.com,mystore.com&#10;..."></textarea>
+    <button class="btn btn-secondary btn-sm" style="margin-top:10px" onclick="parsePaste()">Parse pasted data</button>
+  </div>
+
+  <div class="action-row">
+    <button class="btn btn-primary" onclick="goToStep(2)" id="btn-next-1" style="opacity:0.4;pointer-events:none">
+      Continue to Review →
+    </button>
+    <span id="import-count" style="font-size:12px;color:var(--text3)"></span>
+  </div>
+</div>
+
+<!-- ══════════════════ STEP 2: REVIEW ══════════════════ -->
+<div id="panel-2" class="panel">
+  <div class="panel-header">
+    <h2>Review & clean</h2>
+    <p>Your leads have been parsed, deduplicated, and classified. Review the data quality issues before proceeding.</p>
+  </div>
+
+  <div class="stats-row" id="stats-row"></div>
+
+  <div class="section-divider">Leads by region</div>
+  <div class="table-wrap" style="margin-bottom:24px">
+    <table id="region-table">
+      <thead><tr><th>Region</th><th>Count</th><th>Domains / signals</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section-divider">Leads by category</div>
+  <div class="table-wrap" style="margin-bottom:24px">
+    <table id="category-table">
+      <thead><tr><th>Category</th><th>Count</th><th>Example stores</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="issues-section" style="display:none">
+    <div class="section-divider">Data quality issues</div>
+    <div class="table-wrap" style="margin-bottom:24px">
+      <table id="issues-table">
+        <thead><tr><th>Email</th><th>Issue</th><th>Action</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="action-row">
+    <button class="btn btn-secondary" onclick="goToStep(1)">← Back</button>
+    <button class="btn btn-primary" onclick="goToStep(3)">Edit Templates →</button>
+  </div>
+</div>
+
+<!-- ══════════════════ STEP 3: TEMPLATES ══════════════════ -->
+<div id="panel-3" class="panel">
+  <div class="panel-header">
+    <h2>Personalise templates</h2>
+    <p>Each region × category combination gets its own template. Edit subject lines and body copy. Use <code style="color:var(--accent2);font-size:12px">{{storeName}}</code>, <code style="color:var(--accent2);font-size:12px">{{domain}}</code>, <code style="color:var(--accent2);font-size:12px">{{firstName}}</code> as variables.</p>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <div class="ctrl-group" style="min-width:120px">
+      <div class="ctrl-label">Region</div>
+      <select class="ctrl-select" id="tpl-region-sel" onchange="renderTemplateEditor()">
+        <option value="us">🇺🇸 US</option>
+        <option value="eu">🇪🇺 Europe</option>
+        <option value="gb">🇬🇧 GB</option>
+        <option value="au">🇦🇺 AUS</option>
+      </select>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-top:18px">— edit templates for each region separately</div>
+  </div>
+
+  <div id="template-editor-area"></div>
+
+  <div style="margin-top:16px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text2);line-height:1.7">
+    <strong style="color:var(--accent);font-weight:500">Variables: </strong>
+    <code style="color:var(--accent2)">{{storeName}}</code> → extracted from domain &nbsp;·&nbsp;
+    <code style="color:var(--accent2)">{{domain}}</code> → full domain &nbsp;·&nbsp;
+    <code style="color:var(--accent2)">{{firstName}}</code> → guessed from email &nbsp;·&nbsp;
+    <code style="color:var(--accent2)">{{email}}</code> → raw email
+  </div>
+
+  <div class="action-row">
+    <button class="btn btn-secondary" onclick="goToStep(2)">← Back</button>
+    <button class="btn btn-primary" onclick="generateCampaign()">⚡ Generate Campaign →</button>
+  </div>
+</div>
+
+<!-- ══════════════════ STEP 4: CAMPAIGN ══════════════════ -->
+<div id="panel-4" class="panel">
+  <div class="panel-header">
+    <h2>Your campaign</h2>
+    <p>Each row is a personalised email. Click <strong style="color:var(--accent)">Open in Gmail</strong> to launch the pre-filled compose window — then just hit Send.</p>
+  </div>
+
+  <div class="export-row">
+    <input type="text" class="search-input" placeholder="Search emails..." id="campaign-search" oninput="filterCampaign()">
+    <select class="ctrl-select" style="width:130px" id="campaign-region-filter" onchange="filterCampaign()">
+      <option value="">All regions</option>
+      <option value="us">🇺🇸 US</option>
+      <option value="eu">🇪🇺 Europe</option>
+      <option value="gb">🇬🇧 GB</option>
+      <option value="au">🇦🇺 AUS</option>
+    </select>
+    <select class="ctrl-select" style="width:150px" id="campaign-cat-filter" onchange="filterCampaign()">
+      <option value="">All categories</option>
+      <option value="beauty">Beauty</option>
+      <option value="fashion">Fashion</option>
+      <option value="health">Health</option>
+      <option value="home">Home</option>
+      <option value="pets">Pets</option>
+      <option value="jewelry">Jewelry</option>
+      <option value="sports">Sports</option>
+      <option value="other">Other</option>
+    </select>
+    <span class="count-chip"><strong id="visible-count">0</strong> leads shown</span>
+    <button class="btn btn-secondary btn-sm" onclick="openAll()" style="margin-left:auto">Open all in Gmail</button>
+  </div>
+
+  <div class="lead-table-wrap">
+    <div class="lead-row header">
+      <div>#</div>
+      <div>Email</div>
+      <div>Region</div>
+      <div>Category</div>
+      <div>Store name</div>
+      <div>Subject preview</div>
+      <div>Actions</div>
+    </div>
+    <div id="campaign-list"></div>
+  </div>
+</div>
+
+</main>
+
+<!-- Preview Modal -->
+<div class="preview-modal" id="preview-modal">
+  <div class="preview-inner">
+    <div class="preview-header">
+      <h3 id="modal-title">Email preview</h3>
+      <button class="btn btn-ghost" onclick="closeModal()">✕ Close</button>
+    </div>
+    <div class="preview-body" id="modal-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let leads = [];         // { email, domain, region, category, storeName, firstName, issues[] }
+let templates = {};     // keyed by region_category
+let campaignEmails = []; // rendered emails
+
+// ═══════════════════════════════════════════
+//  STEP NAVIGATION
+// ═══════════════════════════════════════════
+function goToStep(n) {
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('panel-' + i).classList.toggle('active', i === n);
+    const nav = document.getElementById('nav-' + i);
+    nav.classList.remove('active', 'done');
+    if (i === n) nav.classList.add('active');
+    else if (i < n) nav.classList.add('done');
+  }
+  if (n === 2) renderReview();
+  if (n === 3) { initTemplates(); renderTemplateEditor(); }
+  if (n === 4) renderCampaignList();
+}
+
+// ═══════════════════════════════════════════
+//  FILE PARSING
+// ═══════════════════════════════════════════
+const dropzone = document.getElementById('dropzone');
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e => { e.preventDefault(); dropzone.classList.remove('drag'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => parseCSV(e.target.result);
+  reader.readAsText(file);
+}
+
+function parsePaste() {
+  const text = document.getElementById('paste-input').value.trim();
+  if (text) parseCSV(text);
+}
+
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const rawLeads = [];
+  let hasHeader = false;
+
+  // Detect header
+  if (lines[0] && /email|domain|store/i.test(lines[0])) {
+    hasHeader = true;
+  }
+
+  const start = hasHeader ? 1 : 0;
+  for (let i = start; i < lines.length; i++) {
+    const parts = lines[i].split(',').map(p => p.trim().replace(/^"|"$/g, ''));
+    let email = '', domain = '';
+    // figure out which column is email, which is domain
+    for (const p of parts) {
+      if (p.includes('@')) email = p;
+      else if (p.includes('.') && !p.includes('@')) domain = p;
+    }
+    // if no separate domain, try extracting from email
+    if (!domain && email.includes('@')) {
+      domain = email.split('@')[1] || '';
+    }
+    if (email) rawLeads.push({ email: cleanEmail(email), domain: cleanDomain(domain) });
+  }
+
+  // Dedup by email
+  const seen = new Set();
+  const deduped = [];
+  let dupeCount = 0;
+  for (const l of rawLeads) {
+    const key = l.email.toLowerCase();
+    if (seen.has(key)) { dupeCount++; continue; }
+    seen.add(key);
+    deduped.push(l);
+  }
+
+  // Classify each lead
+  leads = deduped.map((l, idx) => classify(l, idx + 1, dupeCount));
+
+  if (leads.length === 0) { showToast('No valid emails found', 'error'); return; }
+
+  document.getElementById('import-count').textContent = `${leads.length} leads ready`;
+  const btn = document.getElementById('btn-next-1');
+  btn.style.opacity = '1';
+  btn.style.pointerEvents = 'auto';
+  showToast(`✓ ${leads.length} leads imported (${dupeCount} dupes removed)`, 'success');
+}
+
+function cleanEmail(e) {
+  // Remove stray trailing letters like comP, comA etc.
+  return e.replace(/(@[a-z0-9.-]+\.[a-z]{2,6})[A-Z]+$/i, (_, m) => m).trim();
+}
+function cleanDomain(d) {
+  return d.replace(/[A-Z]+$/, '').trim().toLowerCase();
+}
+
+// ═══════════════════════════════════════════
+//  CLASSIFICATION
+// ═══════════════════════════════════════════
+const REGION_RULES = [
+  { region: 'au', patterns: [/\.au$/i, /australia/i, /ptyltd/i, /\.com\.au/i] },
+  { region: 'gb', patterns: [/\.co\.uk$/i, /\.uk$/i, /jewellery/i, /\.(uk)/i] },
+  { region: 'eu', patterns: [/\.fr$/i, /\.it$/i, /\.nl$/i, /\.de$/i, /\.es$/i, /\.pt$/i, /\.be$/i, /hotmail\.fr/i, /gmail\.fr/i, /web\.de/i, /virgilio\.it/i, /outlook\.fr/i] },
+  { region: 'us', patterns: [/\.com$/i, /\.us$/i, /\.store$/i, /\.shop$/i, /\.net$/i, /\.life$/i, /\.io$/i, /\.co$/i, /gmail\.com/i, /yahoo\.com/i, /icloud\.com/i, /outlook\.com/i, /hotmail\.com/i] },
+];
+
+const CATEGORY_RULES = [
+  { cat: 'beauty', keywords: ['skin', 'beauty', 'glow', 'hair', 'cosmet', 'lash', 'lume', 'bare', 'nourish', 'essence', 'reveal', 'radiant', 'aura', 'serum', 'fynes', 'myglow', 'lustrous', 'lumin', 'lyphea', 'revant', 'opulen', 'flora', 'sanitase', 'ananda', 'prana', 'sahar', 'amour', 'bella', 'elixir', 'astill', 'trendova', 'cleoluna', 'fistizi', 'zeavs', 'truevital', 'truvital', 'everbloom', 'balancedpure', 'nourishforher', 'naturaleden', 'topcharisme', 'verdure', 'sognisereni'] },
+  { cat: 'fashion', keywords: ['fashion', 'wear', 'apparel', 'cloth', 'dress', 'style', 'outfit', 'mode', 'chic', 'boutique', 'merch', 'shirt', 'shoe', 'sneaker', 'kick', 'denim', 'haute', 'vogue', 'luxe', 'silk', 'balance', 'wearmon', 'modedm', 'shadowstitch', 'trident', 'zayron', 'modestad', 'modemdrn', 'robsessence', 'dravenluxury', 'girldads', 'lifeonpluto', 'lumealy', 'thickrmen', 'silue', 'siluetas', 'livelou', 'closedinfo', 'onlyatvibe', 'vaulttype', 'miriamgrace', 'arvolden', 'dernasneaker', 'reebelaura'] },
+  { cat: 'health', keywords: ['health', 'supplement', 'vital', 'nutrition', 'fit', 'protein', 'weight', 'slim', 'detox', 'wellness', 'organic', 'natural', 'pure', 'clean', 'grain', 'hydri', 'cellum', 'novastep', 'alignrest', 'illumiva', 'immun', 'maxxlabs', 'fitgrain', 'suppfit', 'suppor', 'lifesystem', 'hydrivo', 'healthyis', 'peaksleep', 'lintavoid', 'getalign', 'cellumove', 'nowrap'] },
+  { cat: 'pets', keywords: ['pet', 'dog', 'cat', 'paw', 'fur', 'canine', 'animal', 'critter', 'bark', 'meow', 'birdhouse', 'pawfix', 'shelbycanine', 'petcore', 'sweetteapedigree', 'lovedthypet', 'slobbadog', 'magiapets', 'nuadata'] },
+  { cat: 'jewelry', keywords: ['jewel', 'jewelry', 'jewellery', 'gem', 'ring', 'necklace', 'bracelet', 'gold', 'silver', 'diamond', 'crystal', 'luxe', 'veeragems', 'platinumcup', 'gempuff', 'stagandbear', 'cleoluna', 'honeybliss', 'mistyjewel', 'rivanoframes', 'opulence', 'echansonluxe', 'mariand', 'lumeaboutique'] },
+  { cat: 'sports', keywords: ['sport', 'fit', 'gym', 'run', 'train', 'outdoor', 'hike', 'camp', 'bike', 'cycle', 'surf', 'climb', 'pilates', 'yoga', 'athlet', 'activ', 'torque', 'rider', 'motor', 'drift', 'rush', 'pranaoutdoor', 'fulltorque', 'verifiedcamper', 'sinister', 'driftmini', 'driftless', 'alphaomega', 'vaulthype', 'peakprint', 'stillpilates'] },
+  { cat: 'home', keywords: ['home', 'house', 'decor', 'furniture', 'kitchen', 'bath', 'living', 'garden', 'clean', 'interior', 'candle', 'pad', 'pillow', 'frame', 'shelf', 'villa', 'boombabath', 'havenl', 'groundedsync', 'deskforge', 'maison', 'habitat', 'livable', 'cozy', 'stevanamen', 'meranilue'] },
+  { cat: 'kids', keywords: ['kid', 'baby', 'child', 'toy', 'play', 'junior', 'little', 'tiny', 'cute', 'school', 'livloukids', 'nuadatoys', 'montessori', 'tinytalkie', 'lilypad', 'toddler'] },
+];
+
+function classify(raw, _idx, _dupes) {
+  const email = raw.email;
+  const domain = raw.domain || email.split('@')[1] || '';
+  const combined = (email + ' ' + domain).toLowerCase();
+  const issues = [];
+
+  // detect issues
+  if (/gmail\.fr|outlook\.fr.*@gmail/.test(email)) issues.push({ type: 'warn', msg: 'Unusual TLD' });
+  if (/ilovefb|sharebot|fake|test|example/.test(email)) issues.push({ type: 'err', msg: 'Likely invalid' });
+  if (/youremail|email@email|mailsupport@gmail/.test(email)) issues.push({ type: 'err', msg: 'Placeholder' });
+  if (/[A-Z]{1,2}$/.test(raw.email)) issues.push({ type: 'warn', msg: 'Trailing char removed' });
+
+  // region
+  let region = 'us';
+  for (const r of REGION_RULES) {
+    if (r.patterns.some(p => p.test(combined))) { region = r.region; break; }
+  }
+
+  // category
+  let category = 'other';
+  for (const c of CATEGORY_RULES) {
+    if (c.keywords.some(k => combined.includes(k))) { category = c.cat; break; }
+  }
+
+  // storeName from domain
+  let storeName = domain.replace(/^www\./, '').split('.')[0] || '';
+  storeName = storeName.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+  if (!storeName) storeName = email.split('@')[0].replace(/[._\d]/g, ' ').trim();
+
+  // firstName from email
+  let firstName = email.split('@')[0].split(/[._\d]/)[0];
+  firstName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+  if (firstName.length < 2) firstName = 'there';
+
+  return { email, domain, region, category, storeName, firstName, issues };
+}
+
+// ═══════════════════════════════════════════
+//  STEP 2: REVIEW
+// ═══════════════════════════════════════════
+function renderReview() {
+  const total = leads.length;
+  const withIssues = leads.filter(l => l.issues.length > 0).length;
+  const regions = groupBy(leads, 'region');
+  const cats = groupBy(leads, 'category');
+
+  // Stats
+  const sr = document.getElementById('stats-row');
+  sr.innerHTML = `
+    <div class="stat-card highlight"><div class="label">Total leads</div><div class="val">${total}</div><div class="sub">after dedup</div></div>
+    <div class="stat-card"><div class="label">Regions</div><div class="val">${Object.keys(regions).length}</div><div class="sub">detected</div></div>
+    <div class="stat-card"><div class="label">Categories</div><div class="val">${Object.keys(cats).length}</div><div class="sub">detected</div></div>
+    <div class="stat-card"><div class="label">Issues</div><div class="val" style="color:${withIssues>0?'#fcd34d':'var(--green)'}">${withIssues}</div><div class="sub">to review</div></div>
+    <div class="stat-card"><div class="label">Ready</div><div class="val" style="color:var(--green)">${total - withIssues}</div><div class="sub">clean leads</div></div>
+  `;
+
+  // Region table
+  const rt = document.querySelector('#region-table tbody');
+  rt.innerHTML = '';
+  const regionNames = { us: '🇺🇸 United States', eu: '🇪🇺 Europe', gb: '🇬🇧 Great Britain', au: '🇦🇺 Australia' };
+  for (const [r, arr] of Object.entries(regions)) {
+    const domains = [...new Set(arr.map(l => l.domain).filter(Boolean))].slice(0, 4).join(', ');
+    rt.innerHTML += `<tr>
+      <td><span class="badge badge-${r}">${regionNames[r] || r}</span></td>
+      <td style="color:var(--text);font-weight:500">${arr.length}</td>
+      <td style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text3)">${domains}${arr.length > 4 ? '…' : ''}</td>
+    </tr>`;
+  }
+
+  // Category table
+  const ct = document.querySelector('#category-table tbody');
+  ct.innerHTML = '';
+  for (const [c, arr] of Object.entries(cats)) {
+    const examples = [...new Set(arr.map(l => l.storeName).filter(Boolean))].slice(0, 3).join(', ');
+    ct.innerHTML += `<tr>
+      <td><span class="badge badge-${c}">${c.charAt(0).toUpperCase() + c.slice(1)}</span></td>
+      <td style="color:var(--text);font-weight:500">${arr.length}</td>
+      <td style="font-size:11px;color:var(--text3)">${examples}</td>
+    </tr>`;
+  }
+
+  // Issues
+  const issueLeads = leads.filter(l => l.issues.length > 0);
+  const is = document.getElementById('issues-section');
+  if (issueLeads.length > 0) {
+    is.style.display = 'block';
+    const it = document.querySelector('#issues-table tbody');
+    it.innerHTML = '';
+    for (const l of issueLeads) {
+      for (const iss of l.issues) {
+        it.innerHTML += `<tr>
+          <td style="font-family:'DM Mono',monospace;font-size:11px">${l.email}</td>
+          <td><span class="${iss.type === 'err' ? 'err-badge' : 'warn-badge'}">${iss.msg}</span></td>
+          <td><span style="font-size:11px;color:var(--text2)">${iss.type === 'err' ? 'Will be skipped' : 'Cleaned automatically'}</span></td>
+        </tr>`;
+      }
+    }
+  } else {
+    is.style.display = 'none';
+  }
+}
+
+function groupBy(arr, key) {
+  return arr.reduce((acc, item) => {
+    const k = item[key] || 'other';
+    if (!acc[k]) acc[k] = [];
+    acc[k].push(item);
+    return acc;
+  }, {});
+}
+
+// ═══════════════════════════════════════════
+//  STEP 3: TEMPLATES
+// ═══════════════════════════════════════════
+const DEFAULT_TEMPLATES = {
+  us_beauty: { subject: 'Quick idea for {{storeName}}', body: `Hi {{firstName}},\n\nI came across {{storeName}} and love what you're building in the beauty space.\n\nWe work with Shopify skincare and cosmetics brands in the US to help them grow repeat buyers and increase average order value — without adding complexity.\n\nWould a 15-min call this week make sense? Happy to share a couple of quick wins specific to your niche.\n\nBest,\n[Your Name]\n[Company] | [Website]` },
+  us_fashion: { subject: 'Spotted {{storeName}} — had an idea', body: `Hi {{firstName}},\n\nFound {{storeName}} while researching US fashion brands on Shopify — your aesthetic is sharp.\n\nMost apparel stores we work with are leaving revenue on the table with weak post-purchase flows and untapped email lists.\n\nWe can fix that. One client went from 12% to 31% returning customer rate in 60 days.\n\nOpen to a quick 15-min chat?\n\n[Your Name]\n[Company]` },
+  us_health: { subject: 'Growing {{storeName}} on Shopify', body: `Hi {{firstName}},\n\nI noticed {{storeName}} in the health & supplements space — competitive, but exciting.\n\nWe help US wellness brands scale profitably on Shopify: better ad ROI, stronger subscription retention, cleaner funnels.\n\nWorth 15 minutes this week?\n\n[Your Name]\n[Company]` },
+  us_home: { subject: 'An idea for {{storeName}}', body: `Hi {{firstName}},\n\nCame across {{storeName}} — really like the home/lifestyle angle.\n\nWe help Shopify home brands increase average basket size and build loyal repeat buyers.\n\nGot 15 minutes this week to chat?\n\n[Your Name]\n[Company]` },
+  us_pets: { subject: 'Quick idea for {{storeName}}', body: `Hi {{firstName}},\n\nLove {{storeName}} — pet owners are the most loyal customers when brands get it right.\n\nWe help pet care brands on Shopify build subscription revenue and reduce churn.\n\nOpen to a 15-min chat this week?\n\n[Your Name]\n[Company]` },
+  us_jewelry: { subject: 'Loved {{storeName}} — quick thought', body: `Hi {{firstName}},\n\n{{storeName}} caught my eye — beautiful work.\n\nJewelry is one of the highest-margin Shopify categories, but most stores under-use gifting flows, upsells, and retargeting.\n\nWe've helped jewelry brands add 25-40% revenue without increasing ad spend. 15 min to chat?\n\n[Your Name]\n[Company]` },
+  us_sports: { subject: 'Scaling {{storeName}} — thoughts?', body: `Hi {{firstName}},\n\nFound {{storeName}} — great brand in a space we know well.\n\nWe help sports and outdoor Shopify stores lower CAC and improve retention with better flows.\n\n15 minutes is all I need. This week?\n\n[Your Name]\n[Company]` },
+  us_kids: { subject: 'An idea for {{storeName}}', body: `Hi {{firstName}},\n\n{{storeName}} looks wonderful — the kids and baby space rewards trust and loyalty above all.\n\nWe help Shopify brands in this niche build repeat purchase systems that work.\n\nWorth a quick 15-min chat?\n\n[Your Name]\n[Company]` },
+  us_other: { subject: 'Quick question about {{storeName}}', body: `Hi {{firstName}},\n\nI came across {{storeName}} and was impressed.\n\nWe work with Shopify brands to help them grow revenue and build loyal customers — without the typical agency overhead.\n\nWould a 15-min call make sense this week?\n\n[Your Name]\n[Company]` },
+
+  eu_beauty: { subject: 'Une idée pour {{storeName}}', body: `Bonjour {{firstName}},\n\nJ'ai découvert {{storeName}} et j'ai été impressionné par votre marque beauté.\n\nNous aidons les marques Shopify européennes à augmenter leur panier moyen et fidéliser leurs clients.\n\nUn appel de 15 minutes cette semaine ?\n\nCordialement,\n[Votre Nom] | [Entreprise]\n\n---\nHi {{firstName}}, found {{storeName}} — impressive beauty brand. We help EU Shopify stores grow. 15-min call?` },
+  eu_fashion: { subject: 'Idée pour {{storeName}}', body: `Bonjour {{firstName}},\n\nJ'ai trouvé {{storeName}} en recherchant des marques de mode européennes sur Shopify — très beau positionnement.\n\nNous aidons les marques mode à améliorer leur taux de conversion et à construire une clientèle fidèle.\n\nUn échange de 15 minutes cette semaine ?\n\n[Votre Nom] | [Entreprise]` },
+  eu_health: { subject: 'Croissance pour {{storeName}}', body: `Bonjour {{firstName}},\n\n{{storeName}} est une belle marque dans le secteur santé/bien-être en Europe.\n\nNous spécialisons dans l'aide aux marques Shopify européennes dans ce secteur.\n\n15 minutes cette semaine ?\n\n[Votre Nom]` },
+  eu_home: { subject: 'Une idée pour {{storeName}}', body: `Bonjour {{firstName}},\n\nJ'ai découvert {{storeName}} — un concept maison/lifestyle vraiment intéressant.\n\nNous aidons les marques Shopify dans ce secteur à croître.\n\n15 minutes ?\n\n[Votre Nom]` },
+  eu_pets: { subject: 'Idée pour {{storeName}}', body: `Bonjour {{firstName}},\n\n{{storeName}} est une belle marque dans le secteur animaux en Europe.\n\nNous aidons les boutiques Shopify pour animaux à développer leur chiffre d'affaires récurrent.\n\n15 minutes ?\n\n[Votre Nom]` },
+  eu_jewelry: { subject: 'Superbe travail sur {{storeName}}', body: `Bonjour {{firstName}},\n\nJ'adore les créations de {{storeName}} — excellent travail.\n\nNous aidons les marques de bijoux Shopify en Europe à améliorer leurs conversions et fidéliser leurs clientes.\n\n15 minutes cette semaine ?\n\n[Votre Nom]` },
+  eu_sports: { subject: 'Développer {{storeName}} en Europe', body: `Bonjour {{firstName}},\n\nTrouvé {{storeName}} — excellente marque sport/outdoor.\n\nNous aidons les boutiques Shopify sport en Europe à réduire leur coût d'acquisition et fidéliser leurs clients.\n\n15 minutes ?\n\n[Votre Nom]` },
+  eu_kids: { subject: 'Une idée pour {{storeName}}', body: `Bonjour {{firstName}},\n\n{{storeName}} est une marque adorable dans l'univers enfant.\n\nNous aidons les boutiques Shopify dans ce secteur à construire des systèmes d'achats récurrents.\n\n15 minutes ?\n\n[Votre Nom]` },
+  eu_other: { subject: 'Question rapide sur {{storeName}}', body: `Bonjour {{firstName}},\n\nJ'ai découvert {{storeName}} et j'ai été impressionné.\n\nNous aidons les marques Shopify européennes à croître sans les frais d'agence traditionnels.\n\n15 minutes cette semaine ?\n\n[Votre Nom] | [Entreprise]` },
+
+  gb_beauty: { subject: 'Quick thought on {{storeName}}', body: `Hi {{firstName}},\n\nI came across {{storeName}} — brilliant work on your skincare range.\n\nWe work with UK beauty brands on Shopify to help them scale profitably and build repeat buyers.\n\nWould a 15-minute call this week be of interest?\n\nKind regards,\n[Your Name] | [Company]` },
+  gb_fashion: { subject: 'Spotted {{storeName}} — had an idea', body: `Hi {{firstName}},\n\nCame across {{storeName}} — love the brand direction.\n\nUK fashion on Shopify is competitive, but brands that nail post-purchase and loyalty tend to break through. That's what we do.\n\nFancy a quick 15-min chat?\n\nBest,\n[Your Name] | [Company]` },
+  gb_health: { subject: '{{storeName}} — a quick thought', body: `Hi {{firstName}},\n\nFound {{storeName}} — impressive range. UK supplement brands have a real opportunity right now.\n\nWe'd love to share what's working for brands your size. 15 minutes?\n\n[Your Name] | [Company]` },
+  gb_home: { subject: 'An idea for {{storeName}}', body: `Hi {{firstName}},\n\nLovely brand with {{storeName}} — the home/lifestyle space in the UK is strong right now.\n\nWe help Shopify brands grow. Worth a quick catch-up?\n\n[Your Name]` },
+  gb_pets: { subject: '{{storeName}} — a quick idea', body: `Hi {{firstName}},\n\n{{storeName}} looks brilliant. UK pet owners are some of the most loyal customers online.\n\nWe help pet Shopify brands build recurring revenue. Fancy 15 minutes?\n\n[Your Name]` },
+  gb_jewelry: { subject: 'Lovely work on {{storeName}}', body: `Hi {{firstName}},\n\nBeautiful jewellery at {{storeName}}. We work with UK Shopify jewellery brands to increase gifting revenue and conversions.\n\n15 minutes to share a couple of quick wins?\n\nKind regards,\n[Your Name]` },
+  gb_sports: { subject: 'Scaling {{storeName}} in the UK', body: `Hi {{firstName}},\n\nFound {{storeName}} — great outdoor/sports brand. UK fitness is booming.\n\nWe help Shopify stores in your niche grow. Worth a quick chat?\n\n[Your Name]` },
+  gb_kids: { subject: 'An idea for {{storeName}}', body: `Hi {{firstName}},\n\nLovely concept at {{storeName}} — the UK kids/baby space rewards trust hugely.\n\nWe help Shopify brands here build loyal repeat buyers. 15 minutes?\n\n[Your Name]` },
+  gb_other: { subject: 'Quick question about {{storeName}}', body: `Hi {{firstName}},\n\nI came across {{storeName}} and was really impressed.\n\nWe help UK Shopify brands grow without typical agency overhead. 15 minutes this week?\n\nKind regards,\n[Your Name] | [Company]` },
+
+  au_beauty: { subject: 'Quick idea for {{storeName}}', body: `Hi {{firstName}},\n\nCame across {{storeName}} — really impressive skincare range. Australian beauty brands are having a global moment right now.\n\nWe help Shopify beauty brands in Australia grow D2C and improve repeat purchase rate.\n\nWould love a 15-minute chat — happy to work around your timezone.\n\nCheers,\n[Your Name] | [Company]` },
+  au_fashion: { subject: 'Saw {{storeName}} — had an idea', body: `Hi {{firstName}},\n\nFound {{storeName}} while researching AU fashion brands — strong work.\n\nWe help Australian Shopify apparel brands grow. Would a 15-min call be worth your time?\n\nCheers,\n[Your Name]` },
+  au_health: { subject: '{{storeName}} — a quick thought', body: `Hi {{firstName}},\n\n{{storeName}} looks great — the wellness space in Australia is growing fast.\n\nWe help AU Shopify brands in health & supplements scale. Happy to jump on a call at a time that suits you.\n\nCheers,\n[Your Name]` },
+  au_home: { subject: 'Love the brand — quick idea', body: `Hi {{firstName}},\n\nCame across {{storeName}} — beautiful home/lifestyle concept.\n\nWe help Australian Shopify brands grow. Worth a quick 15-min chat?\n\nCheers,\n[Your Name]` },
+  au_pets: { subject: '{{storeName}} — a quick thought', body: `Hi {{firstName}},\n\n{{storeName}} looks excellent. Australians are among the world's top pet spenders — huge opportunity.\n\nWe help AU Shopify pet brands grow recurring revenue. Keen for a 15-min chat?\n\nCheers,\n[Your Name]` },
+  au_jewelry: { subject: 'Beautiful work on {{storeName}}', body: `Hi {{firstName}},\n\nLovely pieces at {{storeName}}. We work with AU Shopify jewellery brands to grow conversions and loyalty.\n\n15 minutes to share a quick win?\n\nCheers,\n[Your Name]` },
+  au_sports: { subject: 'Scaling {{storeName}} in Australia', body: `Hi {{firstName}},\n\nFound {{storeName}} — excellent outdoor/sports brand.\n\nWe help AU Shopify stores in your space grow. Worth a quick chat?\n\nCheers,\n[Your Name]` },
+  au_kids: { subject: 'An idea for {{storeName}}', body: `Hi {{firstName}},\n\n{{storeName}} is such a lovely concept — the AU kids/baby space has incredible loyalty potential.\n\nWe help Shopify brands here grow. 15 minutes?\n\nCheers,\n[Your Name]` },
+  au_other: { subject: 'Quick question about {{storeName}}', body: `Hi {{firstName}},\n\nI came across {{storeName}} and was impressed.\n\nWe help Australian Shopify brands grow without the typical agency overhead. 15 minutes this week?\n\nCheers,\n[Your Name] | [Company]` },
+};
+
+function initTemplates() {
+  // Only init once, preserve user edits
+  for (const key of Object.keys(DEFAULT_TEMPLATES)) {
+    if (!templates[key]) templates[key] = { ...DEFAULT_TEMPLATES[key] };
+  }
+}
+
+function renderTemplateEditor() {
+  const region = document.getElementById('tpl-region-sel').value;
+  const usedCats = [...new Set(leads.map(l => l.category))];
+  const allCats = ['beauty', 'fashion', 'health', 'home', 'pets', 'jewelry', 'sports', 'kids', 'other'];
+  const catsToShow = allCats.filter(c => usedCats.includes(c));
+
+  const area = document.getElementById('template-editor-area');
+  area.innerHTML = '';
+
+  const grid = document.createElement('div');
+  grid.className = 'template-grid';
+
+  for (const cat of catsToShow) {
+    const key = `${region}_${cat}`;
+    const tpl = templates[key] || DEFAULT_TEMPLATES[key] || { subject: '', body: '' };
+    const count = leads.filter(l => l.region === region && l.category === cat).length;
+
+    const card = document.createElement('div');
+    card.className = 'tpl-card';
+    card.innerHTML = `
+      <div class="tpl-card-header">
+        <span class="badge badge-${cat}">${cat}</span>
+        <span class="tpl-name">${region.toUpperCase()} · ${count} lead${count !== 1 ? 's' : ''}</span>
+        <button class="btn btn-ghost" style="padding:2px 6px;font-size:11px" onclick="resetTemplate('${key}')">reset</button>
+      </div>
+      <div class="tpl-body">
+        <div class="field-group">
+          <div class="field-label">Subject line</div>
+          <input type="text" class="field-input" id="subj-${key}" value="${escHtml(tpl.subject)}" oninput="saveTemplate('${key}')">
+        </div>
+        <div class="field-group">
+          <div class="field-label">Email body</div>
+          <textarea class="field-input" id="body-${key}" oninput="saveTemplate('${key}')">${escHtml(tpl.body)}</textarea>
+        </div>
+        <div class="vars-hint"><span>{{firstName}}</span> <span>{{storeName}}</span> <span>{{domain}}</span> <span>{{email}}</span></div>
+      </div>
+    `;
+    grid.appendChild(card);
+  }
+
+  area.appendChild(grid);
+}
+
+function saveTemplate(key) {
+  templates[key] = {
+    subject: document.getElementById('subj-' + key).value,
+    body: document.getElementById('body-' + key).value,
+  };
+}
+
+function resetTemplate(key) {
+  templates[key] = { ...(DEFAULT_TEMPLATES[key] || { subject: '', body: '' }) };
+  renderTemplateEditor();
+}
+
+function escHtml(s) {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ═══════════════════════════════════════════
+//  STEP 4: CAMPAIGN GENERATION
+// ═══════════════════════════════════════════
+function generateCampaign() {
+  initTemplates();
+  // Save any open template fields
+  const inputs = document.querySelectorAll('[id^="subj-"], [id^="body-"]');
+  inputs.forEach(el => {
+    const parts = el.id.split('-');
+    const key = parts.slice(1).join('-');
+    if (!templates[key]) templates[key] = { subject: '', body: '' };
+    if (el.id.startsWith('subj-')) templates[key].subject = el.value;
+    if (el.id.startsWith('body-')) templates[key].body = el.value;
+  });
+
+  campaignEmails = [];
+  const validLeads = leads.filter(l => !l.issues.find(i => i.type === 'err'));
+
+  for (const lead of validLeads) {
+    const key = `${lead.region}_${lead.category}`;
+    const tpl = templates[key] || DEFAULT_TEMPLATES[key] || DEFAULT_TEMPLATES[`${lead.region}_other`] || { subject: 'Hello from {{storeName}}', body: 'Hi {{firstName}},' };
+    const subject = interpolate(tpl.subject, lead);
+    const body = interpolate(tpl.body, lead);
+    const gmailUrl = buildGmailUrl(lead.email, subject, body);
+    campaignEmails.push({ ...lead, subject, body, gmailUrl });
+  }
+
+  goToStep(4);
+  showToast(`✓ ${campaignEmails.length} emails generated`, 'success');
+}
+
+function interpolate(tpl, lead) {
+  return (tpl || '')
+    .replace(/\{\{storeName\}\}/g, lead.storeName || 'your store')
+    .replace(/\{\{firstName\}\}/g, lead.firstName || 'there')
+    .replace(/\{\{domain\}\}/g, lead.domain || '')
+    .replace(/\{\{email\}\}/g, lead.email || '');
+}
+
+function buildGmailUrl(to, subject, body) {
+  const params = new URLSearchParams({ to, su: subject, body });
+  return `https://mail.google.com/mail/?view=cm&fs=1&${params.toString()}`;
+}
+
+// ═══════════════════════════════════════════
+//  STEP 4: RENDER LIST
+// ═══════════════════════════════════════════
+function renderCampaignList() {
+  document.getElementById('visible-count').textContent = campaignEmails.length;
+  filterCampaign();
+}
+
+function filterCampaign() {
+  const search = document.getElementById('campaign-search').value.toLowerCase();
+  const regionF = document.getElementById('campaign-region-filter').value;
+  const catF = document.getElementById('campaign-cat-filter').value;
+
+  const filtered = campaignEmails.filter(e => {
+    if (search && !e.email.toLowerCase().includes(search) && !e.storeName.toLowerCase().includes(search)) return false;
+    if (regionF && e.region !== regionF) return false;
+    if (catF && e.category !== catF) return false;
+    return true;
+  });
+
+  document.getElementById('visible-count').textContent = filtered.length;
+  const list = document.getElementById('campaign-list');
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><p>No leads match your filters.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map((e, i) => `
+    <div class="lead-row">
+      <div class="lead-idx">${i + 1}</div>
+      <div class="lead-email">${e.email}</div>
+      <div><span class="badge badge-${e.region}">${e.region.toUpperCase()}</span></div>
+      <div><span class="badge badge-${e.category}">${e.category}</span></div>
+      <div style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.storeName}</div>
+      <div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px">${e.subject}</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn-ghost" style="font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);cursor:pointer;background:transparent" onclick="previewEmail(${campaignEmails.indexOf(e)})">Preview</button>
+        <a class="open-btn gmail" href="${e.gmailUrl}" target="_blank" rel="noopener">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+          Gmail
+        </a>
+      </div>
+    </div>
+  `).join('');
+}
+
+function previewEmail(idx) {
+  const e = campaignEmails[idx];
+  document.getElementById('modal-title').textContent = e.email;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="preview-field"><div class="pf-label">To</div><div class="pf-val">${e.email}</div></div>
+    <div class="preview-field"><div class="pf-label">Subject</div><div class="pf-val">${e.subject}</div></div>
+    <div class="preview-field"><div class="pf-label">Body</div><div class="pf-val">${e.body}</div></div>
+    <div style="margin-top:16px;display:flex;gap:10px">
+      <a class="open-btn gmail" href="${e.gmailUrl}" target="_blank" rel="noopener" style="padding:8px 16px;font-size:13px">
+        Open in Gmail →
+      </a>
+    </div>
+  `;
+  document.getElementById('preview-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('preview-modal').classList.remove('open');
+}
+document.getElementById('preview-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+function openAll() {
+  const visCount = parseInt(document.getElementById('visible-count').textContent) || 0;
+  if (visCount > 10) {
+    if (!confirm(`This will open ${visCount} Gmail tabs. Your browser may block popups. Continue?`)) return;
+  }
+  const search = document.getElementById('campaign-search').value.toLowerCase();
+  const regionF = document.getElementById('campaign-region-filter').value;
+  const catF = document.getElementById('campaign-cat-filter').value;
+  const filtered = campaignEmails.filter(e => {
+    if (search && !e.email.toLowerCase().includes(search) && !e.storeName.toLowerCase().includes(search)) return false;
+    if (regionF && e.region !== regionF) return false;
+    if (catF && e.category !== catF) return false;
+    return true;
+  });
+  for (const e of filtered) window.open(e.gmailUrl, '_blank');
+}
+
+// ═══════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════
+let toastTimer;
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
