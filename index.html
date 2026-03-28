@@ -473,8 +473,8 @@ function detectSegment(email, domain) {
 function cleanEmail(raw) {
   if (!raw) return null;
   let e = raw.trim();
-  // Remove trailing garbage letters after TLD
-  e = e.replace(/\.(com|co|uk|fr|it|nl|de|pt|es|au|net|org|shop|store|io|info|life|us|be)[A-Z]+$/i, '.$1');
+  // Remove trailing garbage letters ONLY after .com (e.g. .comP .comA .comB)
+  e = e.replace(/\.com[A-Z]+$/i, '.com');
   // Fix gmail.fr -> gmail.com, yahoo.fr etc
   e = e.replace(/@gmail\.(fr|de|es|it|nl|pt)/i, '@gmail.com');
   e = e.replace(/@yahoo\.(fr|de|it|es)/i, '@yahoo.com');
